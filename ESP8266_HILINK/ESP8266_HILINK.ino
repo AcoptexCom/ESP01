@@ -2,7 +2,7 @@
 #include <ESP8266WiFi.h>
 
 // Replace with your network credentials
-const char* ssid     = "TR-2";
+const char* ssid     = "TR-1";
 const char* password = "1234";
 
 // Set web server port number to 80
@@ -13,14 +13,14 @@ String header;
 
 // Auxiliar variables to store the current output state
 String output2State = "off";
-
+String output1State = "off";
 // Assign output variables to GPIO pins
 const int output2 = 2;
-
+const int output1 = 0;
 // Current time
 unsigned long currentTime = millis();
 // Previous time
-unsigned long previousTime = 0; 
+unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
@@ -28,25 +28,27 @@ void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
   pinMode(output2, OUTPUT);
+  pinMode(output1, OUTPUT);
   // Set outputs to LOW
   digitalWrite(output2, LOW);
-
+  digitalWrite(output1, LOW);
   // Connect to Wi-Fi network with SSID and password
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  
-  // Print local IP address and start web server   
-  Serial.print("IP address: ");
+  // Print local IP address and start web server
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   server.begin();
 }
 
-void loop(){
+void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
 
   if (client) {                             // If a new client connects,
@@ -70,7 +72,7 @@ void loop(){
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
-            
+
             // turns the GPIOs on and off
             if (header.indexOf("GET /2/on") >= 0) {
               Serial.println("GPIO 2 on");
@@ -81,32 +83,47 @@ void loop(){
               output2State = "off";
               digitalWrite(output2, LOW);
             }
-            
+            // turns the GPIOs on and off
+            if (header.indexOf("GET /1/on") >= 0) {
+              Serial.println("GPIO 0 on");
+              output1State = "on";
+              digitalWrite(output1, HIGH);
+            } else if (header.indexOf("GET /1/off") >= 0) {
+              Serial.println("GPIO 0 off");
+              output1State = "off";
+              digitalWrite(output1, LOW);
+            }
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons 
+            // CSS to style the on/off buttons
             // Feel free to change the background-color and font-size attributes to fit your preferences
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
             client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
             client.println(".button2 {background-color: #77878A;}</style></head>");
-            
+
             // Web Page Heading
             client.println("<body><h1>HiLink Web Server</h1>");
-            
-            // Display current state, and ON/OFF buttons for GPIO 5  
-            client.println("<p>Lamp state " + output2State + "</p>");
-            // If the output5State is off, it displays the ON button       
-            if (output2State=="off") {
+
+            // Display current state, and ON/OFF buttons for GPIO
+            client.println("<p>GPIO 0 - State " + output1State + "</p>");
+            client.println("<p>GPIO 2 - State " + output2State + "</p>");
+            // If the outputState is off, it displays the ON button
+            if (output1State == "off") {
+              client.println("<p><a href=\"/1/on\"><button class=\"button\">ON</button></a></p>");
+            } else {
+              client.println("<p><a href=\"/1/off\"><button class=\"button button2\">OFF</button></a></p>");
+            }
+            if (output2State == "off") {
               client.println("<p><a href=\"/2/on\"><button class=\"button\">ON</button></a></p>");
             } else {
               client.println("<p><a href=\"/2/off\"><button class=\"button button2\">OFF</button></a></p>");
-            } 
-               
+            }
+
             client.println("</body></html>");
-            
+
             // The HTTP response ends with another blank line
             client.println();
             // Break out of the while loop
